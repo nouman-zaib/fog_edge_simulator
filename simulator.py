@@ -1,15 +1,3 @@
-"""
-Fog/Edge/Cloud Layer Data Partitioning Simulator (Improved)
-============================================================
-- 3-Layer Architecture: Edge → Fog → Cloud
-- Animated data packets flowing across canvas
-- Thread-safe UI updates via queue
-- Speed slider control
-- Live throughput graph (last 30 seconds)
-- Per-device statistics table
-- Latency comparison chart
-"""
-
 import tkinter as tk
 from tkinter import ttk, messagebox
 import random
@@ -20,9 +8,6 @@ from collections import deque
 import threading
 import queue
 
-
-# ─────────────────────────── Data Models ───────────────────────────
-
 class DataPacket:
     """Represents a data packet from an edge device"""
     _counter = 0
@@ -32,8 +17,8 @@ class DataPacket:
         self.id = DataPacket._counter
         self.device_id = device_id
         self.data_type = data_type
-        self.size = size          # in KB
-        self.priority = priority  # 1-5, where 5 is highest
+        self.size = size      
+        self.priority = priority  
         self.timestamp = timestamp
         self.processed_at = None
         self.processing_layer = None
@@ -89,8 +74,6 @@ class EdgeDevice:
         return pkt
 
 
-# ─────────────────────────── Processing Layers ───────────────────────────
-
 class ProcessingLayer:
     def __init__(self, name, capacity_kbps, latency_ms):
         self.name = name
@@ -137,20 +120,17 @@ class FogLayer(ProcessingLayer):
     @staticmethod
     def should_handle(pkt):
         if pkt.size > 500:
-            return False   # too big → Cloud
+            return False  
         if pkt.priority <= 2:
             return True
         if pkt.data_type in ('image', 'telemetry', 'temperature', 'humidity'):
             return True
-        return True  # default middle layer
+        return True 
 
 
 class CloudLayer(ProcessingLayer):
     def __init__(self):
         super().__init__("Cloud", capacity_kbps=5000, latency_ms=80)
-
-
-# ─────────────────────────── Animated Dot ───────────────────────────
 
 class AnimatedDot:
     """A small circle that moves from (sx,sy) → (tx,ty) over `steps` frames."""
@@ -176,9 +156,6 @@ class AnimatedDot:
         y = self.sy + (self.ty - self.sy) * t
         return x, y
 
-
-# ─────────────────────────── Color Palette ───────────────────────────
-
 class Colors:
     BG       = '#0f0f1a'
     PANEL    = '#1a1a2e'
@@ -196,8 +173,6 @@ class Colors:
     PRI_COLORS = {1: '#78909c', 2: '#4fc3f7', 3: '#ffd740', 4: '#ffab40', 5: '#ff5252'}
 
 
-# ─────────────────────────── Main Simulator ───────────────────────────
-
 class FogEdgeSimulator:
     LAYER_COLORS = {'Edge': Colors.EDGE, 'Fog': Colors.FOG, 'Cloud': Colors.CLOUD}
 
@@ -205,8 +180,6 @@ class FogEdgeSimulator:
         self.root = root
         self.root.title("⚡ Fog / Edge / Cloud — Data Partitioning Simulator")
         self.root.configure(bg=Colors.BG)
-
-        # ── Responsive: detect screen size and fit to 92% ──
         scr_w = self.root.winfo_screenwidth()
         scr_h = self.root.winfo_screenheight()
         win_w = min(int(scr_w * 0.92), 1500)
@@ -215,17 +188,14 @@ class FogEdgeSimulator:
         y_pos = max(0, (scr_h - win_h) // 2 - 20)
         self.root.geometry(f"{win_w}x{win_h}+{x_pos}+{y_pos}")
         self.root.minsize(900, 550)
-
-        # Adaptive font sizes based on screen width
         self._fs = 'small' if scr_w < 1440 else 'normal'
         self._title_font_size = 18 if self._fs == 'small' else 22
         self._section_font_size = 11 if self._fs == 'small' else 13
         self._body_font_size = 9 if self._fs == 'small' else 10
         self._stat_font_size = 10 if self._fs == 'small' else 12
 
-        # State
         self.running = False
-        self.speed = 3          # 1‑10 slider
+        self.speed = 3        
         self.edge_devices = []
         self.edge_layer = EdgeLayer()
         self.fog_layer = FogLayer()
@@ -233,7 +203,7 @@ class FogEdgeSimulator:
         self.ui_queue = queue.Queue()
         self.update_id = None
         self.animated_dots = []
-        self.throughput_history = deque(maxlen=30)  # last 30 seconds
+        self.throughput_history = deque(maxlen=30) 
         self._last_total = 0
 
         self.stats = {
@@ -246,10 +216,7 @@ class FogEdgeSimulator:
         self.root.bind('<Escape>', lambda e: self.stop_simulation())
         self.root.bind('<space>', lambda e: self.toggle_simulation())
 
-    # ──────────── UI Construction ────────────
-
     def _build_ui(self):
-        # Title bar
         top = tk.Frame(self.root, bg=Colors.BG)
         top.pack(fill=tk.X, padx=15, pady=(8, 2))
         tk.Label(top, text="⚡ Fog / Edge / Cloud  Data Partitioning Simulator",
@@ -257,32 +224,26 @@ class FogEdgeSimulator:
         tk.Label(top, text="Space = Play/Pause  |  Esc = Stop",
                  font=('Segoe UI', 9), bg=Colors.BG, fg=Colors.TEXT_DIM).pack(side=tk.RIGHT)
 
-        # Main 3-column grid layout (responsive)
         body = tk.Frame(self.root, bg=Colors.BG)
         body.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
-        body.columnconfigure(0, weight=0, minsize=220)   # Left panel
-        body.columnconfigure(1, weight=1, minsize=300)   # Center panel (expands)
-        body.columnconfigure(2, weight=0, minsize=240)   # Right panel
+        body.columnconfigure(0, weight=0, minsize=220)  
+        body.columnconfigure(1, weight=1, minsize=300)   
+        body.columnconfigure(2, weight=0, minsize=240)   
         body.rowconfigure(0, weight=1)
 
-        # LEFT COLUMN — scrollable, adapts to content
         left = tk.Frame(body, bg=Colors.PANEL, bd=0, relief=tk.FLAT)
         left.grid(row=0, column=0, sticky='nsew', padx=(0, 6))
         self._build_left_panel(left)
 
-        # CENTER COLUMN — expands to fill
         center = tk.Frame(body, bg=Colors.PANEL, bd=0)
         center.grid(row=0, column=1, sticky='nsew', padx=(0, 6))
         self._build_center_panel(center)
 
-        # RIGHT COLUMN — adapts
         right = tk.Frame(body, bg=Colors.PANEL, bd=0)
         right.grid(row=0, column=2, sticky='nsew')
         self._build_right_panel(right)
 
-    # ---- Left Panel ----
     def _build_left_panel(self, parent):
-        # Scrollable container for the entire left panel
         outer_canvas = tk.Canvas(parent, bg=Colors.PANEL, highlightthickness=0)
         vsb = tk.Scrollbar(parent, orient='vertical', command=outer_canvas.yview)
         scroll_frame = tk.Frame(outer_canvas, bg=Colors.PANEL)
@@ -292,18 +253,16 @@ class FogEdgeSimulator:
         outer_canvas.configure(yscrollcommand=vsb.set)
         outer_canvas.pack(side='left', fill='both', expand=True)
         vsb.pack(side='right', fill='y')
-        # Mouse wheel scroll
+        
         def _on_mousewheel(e):
             outer_canvas.yview_scroll(int(-1 * (e.delta / 120)), 'units')
         outer_canvas.bind_all('<MouseWheel>', _on_mousewheel)
-        # Resize inner frame width to match canvas
         def _resize_inner(e):
             outer_canvas.itemconfigure(outer_canvas.find_withtag('all')[0], width=e.width)
         outer_canvas.bind('<Configure>', _resize_inner)
 
         self._section_label(scroll_frame, "📡  Edge Devices")
 
-        # Device list
         list_frame = tk.Frame(scroll_frame, bg=Colors.CARD)
         list_frame.pack(fill=tk.X, padx=8, pady=4)
         lb_height = 6 if self._fs == 'small' else 8
@@ -314,7 +273,6 @@ class FogEdgeSimulator:
         )
         self.device_listbox.pack(fill=tk.X, padx=4, pady=4)
 
-        # Add/Remove
         ctrl = tk.Frame(scroll_frame, bg=Colors.PANEL)
         ctrl.pack(fill=tk.X, padx=8, pady=4)
         tk.Label(ctrl, text="Type:", bg=Colors.PANEL, fg=Colors.TEXT_DIM,
@@ -330,7 +288,6 @@ class FogEdgeSimulator:
         self._btn(btn_row, "➕ Add", Colors.ACCENT, self.add_device).pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 3))
         self._btn(btn_row, "➖ Remove", Colors.DANGER, self.remove_device).pack(side=tk.LEFT, expand=True, fill=tk.X)
 
-        # Simulation Controls
         self._section_label(scroll_frame, "⚙️  Simulation")
 
         sim_frame = tk.Frame(scroll_frame, bg=Colors.PANEL)
@@ -342,7 +299,6 @@ class FogEdgeSimulator:
         self.stop_btn.config(state=tk.DISABLED)
         self._btn(sim_frame, "🔄  Reset", '#78909c', self.reset_simulation).pack(fill=tk.X, pady=2)
 
-        # Speed Slider
         self._section_label(scroll_frame, "🏎️  Speed")
         speed_frame = tk.Frame(scroll_frame, bg=Colors.PANEL)
         speed_frame.pack(fill=tk.X, padx=8, pady=3)
@@ -359,7 +315,6 @@ class FogEdgeSimulator:
         tk.Label(speed_frame, text="Fast", bg=Colors.PANEL, fg=Colors.TEXT_DIM,
                  font=('Segoe UI', 8)).pack(side=tk.LEFT)
 
-        # Per-Device Stats
         self._section_label(scroll_frame, "📱  Per-Device Stats")
         dev_stats_frame = tk.Frame(scroll_frame, bg=Colors.CARD)
         dev_stats_frame.pack(fill=tk.X, padx=8, pady=(3, 8))
@@ -381,15 +336,12 @@ class FogEdgeSimulator:
 
         self.device_tree.pack(fill=tk.X)
 
-    # ---- Center Panel ----
     def _build_center_panel(self, parent):
         self._section_label(parent, "📊  Live Data Flow Visualization")
 
-        # Main canvas
         self.canvas = tk.Canvas(parent, bg=Colors.BG, highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=10, pady=(4, 6))
 
-        # Packet log
         self._section_label(parent, "📝  Recent Packets")
         log_outer = tk.Frame(parent, bg=Colors.CARD)
         log_outer.pack(fill=tk.BOTH, padx=10, pady=(0, 10), expand=False)
@@ -407,7 +359,6 @@ class FogEdgeSimulator:
         self.packet_log.tag_config('cloud', foreground=Colors.CLOUD)
         self.packet_log.tag_config('dim', foreground=Colors.TEXT_DIM)
 
-    # ---- Right Panel ----
     def _build_right_panel(self, parent):
         self._section_label(parent, "📈  Live Statistics")
 
@@ -434,23 +385,18 @@ class FogEdgeSimulator:
             vl.pack(side=tk.RIGHT, padx=6, pady=3)
             self.stats_labels[key] = vl
 
-        # Latency comparison
         chart_h = 80 if self._fs == 'small' else 100
         self._section_label(parent, "⏱️  Avg Latency")
         self.latency_canvas = tk.Canvas(parent, bg=Colors.BG, highlightthickness=0, height=chart_h)
         self.latency_canvas.pack(fill=tk.X, padx=8, pady=3)
 
-        # Distribution chart
         self._section_label(parent, "📊  Distribution")
         self.dist_canvas = tk.Canvas(parent, bg=Colors.BG, highlightthickness=0, height=chart_h)
         self.dist_canvas.pack(fill=tk.X, padx=8, pady=3)
 
-        # Throughput graph
         self._section_label(parent, "📶  Throughput")
         self.throughput_canvas = tk.Canvas(parent, bg=Colors.BG, highlightthickness=0, height=chart_h)
         self.throughput_canvas.pack(fill=tk.X, padx=8, pady=(3, 8))
-
-    # ──────────── Helpers ────────────
 
     def _section_label(self, parent, text):
         tk.Label(parent, text=text, font=('Segoe UI', self._section_font_size, 'bold'),
@@ -462,8 +408,6 @@ class FogEdgeSimulator:
                       font=('Segoe UI', btn_font_size, 'bold'), cursor='hand2',
                       relief=tk.FLAT, padx=8, pady=4, activebackground=color)
         return b
-
-    # ──────────── Device Management ────────────
 
     def _create_default_devices(self):
         for dtype, count in [('IoT Sensor', 2), ('Camera', 1), ('Smart Device', 2)]:
@@ -501,8 +445,6 @@ class FogEdgeSimulator:
         for d in self.edge_devices:
             self.device_tree.insert('', 'end', values=(
                 d.device_id, d.packets_sent, d.edge_count, d.fog_count, d.cloud_count))
-
-    # ──────────── Simulation Control ────────────
 
     def start_simulation(self):
         if not self.edge_devices:
@@ -552,8 +494,6 @@ class FogEdgeSimulator:
         self.throughput_canvas.delete('all')
         DataPacket._counter = 0
 
-    # ──────────── Simulation Loop (Background Thread) ────────────
-
     def _simulation_loop(self):
         while self.running:
             if not self.edge_devices:
@@ -562,7 +502,6 @@ class FogEdgeSimulator:
             dev = random.choice(self.edge_devices)
             pkt = dev.generate_packet()
 
-            # Routing logic: Edge → Fog → Cloud
             if EdgeLayer.should_handle(pkt):
                 layer = self.edge_layer
                 layer_name = 'edge'
@@ -578,27 +517,21 @@ class FogEdgeSimulator:
 
             processed = layer.process(pkt)
 
-            # Update stats
             self.stats['total_packets'] += 1
             self.stats['total_data'] += pkt.size
             self.stats[f'{layer_name}_packets'] += 1
             self.stats[f'{layer_name}_data'] += pkt.size
 
-            # Queue UI update (thread-safe)
             self.ui_queue.put(('log', processed, layer_name, dev.device_id))
 
-            # Sleep based on speed slider (fast = less sleep)
             delay = max(0.02, 0.6 / self.speed)
             time.sleep(delay)
-
-    # ──────────── UI Tick (Main Thread) ────────────
 
     def _tick(self):
         if not self.running:
             self.update_id = None
             return
 
-        # Drain UI queue
         try:
             while True:
                 msg = self.ui_queue.get_nowait()
@@ -609,27 +542,21 @@ class FogEdgeSimulator:
         except queue.Empty:
             pass
 
-        # Update animated dots
         self._advance_dots()
 
-        # Draw canvas
         self._draw_canvas()
 
-        # Update panels
         self._update_stats_labels()
         self._draw_latency_chart()
         self._draw_distribution()
         self._refresh_device_tree()
 
-        # Throughput tracking (once per second approximation)
         cur = self.stats['total_packets']
         self.throughput_history.append(cur - self._last_total)
         self._last_total = cur
         self._draw_throughput()
 
         self.update_id = self.root.after(1000, self._tick)
-
-    # ──────────── Animated Dots ────────────
 
     def _get_layer_target(self, layer_name):
         """Return (x, y) for the target layer node on the canvas."""
@@ -662,21 +589,17 @@ class FogEdgeSimulator:
             dot.tick()
         self.animated_dots = [d for d in self.animated_dots if d.alive]
 
-    # ──────────── Canvas Drawing ────────────
-
     def _draw_canvas(self):
         c = self.canvas
         c.delete('all')
         w = c.winfo_width() or 700
         h = c.winfo_height() or 420
 
-        # ─ Draw devices row ─
         if self.edge_devices:
             spacing = w / (len(self.edge_devices) + 1)
             dy = h * 0.18
             for i, dev in enumerate(self.edge_devices):
                 dx = spacing * (i + 1)
-                # Device card
                 r = 18
                 self._rounded_rect(c, dx - r - 4, dy - r - 4, dx + r + 4, dy + r + 4,
                                     12, fill=Colors.CARD, outline=Colors.DEVICE, width=2)
@@ -684,7 +607,6 @@ class FogEdgeSimulator:
                 c.create_text(dx, dy + r + 14, text=dev.device_id,
                               font=('Consolas', 8), fill=Colors.TEXT_DIM)
 
-        # ─ Draw layer nodes ─
         layers_info = [
             ('Edge', Colors.EDGE, w * 0.18, h * 0.75, self.edge_layer),
             ('Fog',  Colors.FOG,  w * 0.50, h * 0.75, self.fog_layer),
@@ -692,14 +614,12 @@ class FogEdgeSimulator:
         ]
         node_r = 50
         for name, color, lx, ly, layer_obj in layers_info:
-            # Glow
             for gr in range(3, 0, -1):
                 alpha_hex = f'{int(40 * gr):02x}'
-                glow_color = color  # tkinter doesn't support alpha, use solid
+                glow_color = color 
                 c.create_oval(lx - node_r - gr * 4, ly - node_r - gr * 4,
                               lx + node_r + gr * 4, ly + node_r + gr * 4,
                               fill='', outline=color, width=1)
-            # Node circle
             c.create_oval(lx - node_r, ly - node_r, lx + node_r, ly + node_r,
                           fill=Colors.CARD, outline=color, width=3)
             c.create_text(lx, ly - 14, text=name, font=('Segoe UI', 13, 'bold'), fill=color)
@@ -708,13 +628,11 @@ class FogEdgeSimulator:
             c.create_text(lx, ly + 22, text=f"{layer_obj.avg_latency:.1f}ms",
                           font=('Consolas', 9), fill=Colors.TEXT_DIM)
 
-        # ─ Draw connection lines (devices → layers) ─
         if self.edge_devices:
             spacing = w / (len(self.edge_devices) + 1)
             dy = h * 0.18
             for i, dev in enumerate(self.edge_devices):
                 dx = spacing * (i + 1)
-                # Figure out which layer this device mostly sends to
                 counts = [dev.edge_count, dev.fog_count, dev.cloud_count]
                 max_idx = counts.index(max(counts)) if any(counts) else 0
                 target_x = [w * 0.18, w * 0.50, w * 0.82][max_idx]
@@ -723,19 +641,16 @@ class FogEdgeSimulator:
                 c.create_line(dx, dy + 22, target_x, target_y,
                               fill=line_color, width=1, dash=(4, 4), arrow=tk.LAST)
 
-        # ─ Draw inter-layer arrows ─
         arrow_y = h * 0.75
         c.create_line(w * 0.18 + node_r + 8, arrow_y, w * 0.50 - node_r - 8, arrow_y,
                       fill=Colors.TEXT_DIM, width=2, arrow=tk.LAST, dash=(6, 4))
         c.create_line(w * 0.50 + node_r + 8, arrow_y, w * 0.82 - node_r - 8, arrow_y,
                       fill=Colors.TEXT_DIM, width=2, arrow=tk.LAST, dash=(6, 4))
 
-        # ─ Draw animated dots ─
         for dot in self.animated_dots:
             x, y = dot.pos
             r = 5
             c.create_oval(x - r, y - r, x + r, y + r, fill=dot.color, outline='')
-            # Trail
             if dot.step > 1:
                 t2 = max(0, (dot.step - 2)) / dot.steps
                 t2 = t2 * t2 * (3 - 2 * t2)
@@ -743,7 +658,6 @@ class FogEdgeSimulator:
                 ty = dot.sy + (dot.ty - dot.sy) * t2
                 c.create_oval(tx - 2, ty - 2, tx + 2, ty + 2, fill=dot.color, outline='')
 
-        # ─ Labels ─
         c.create_text(w * 0.18, h * 0.75 + node_r + 18, text="Low Latency • Local",
                       font=('Segoe UI', 8), fill=Colors.EDGE)
         c.create_text(w * 0.50, h * 0.75 + node_r + 18, text="Aggregation • Regional",
@@ -762,8 +676,6 @@ class FogEdgeSimulator:
         ]
         return canvas.create_polygon(points, smooth=True, **kwargs)
 
-    # ──────────── Logging ────────────
-
     def _log_packet(self, pkt, layer_name):
         ts = pkt.processed_at.strftime("%H:%M:%S")
         tag = layer_name
@@ -772,11 +684,8 @@ class FogEdgeSimulator:
         self.packet_log.insert(tk.END,
             f"│ {pkt.device_id} │ {pkt.data_type:18s} │ {pkt.size:>8.1f}KB │ {pkt.processing_time:>7.1f}ms │ Pri:{pkt.priority}\n")
         self.packet_log.see(tk.END)
-        # Keep log manageable
         if float(self.packet_log.index('end-1c').split('.')[0]) > 200:
             self.packet_log.delete('1.0', '50.0')
-
-    # ──────────── Stats Labels ────────────
 
     def _update_stats_labels(self):
         for key, lbl in self.stats_labels.items():
@@ -785,8 +694,6 @@ class FogEdgeSimulator:
                 lbl.config(text=f"{val:,.1f}")
             else:
                 lbl.config(text=str(val))
-
-    # ──────────── Latency Chart ────────────
 
     def _draw_latency_chart(self):
         lc = self.latency_canvas
@@ -812,8 +719,6 @@ class FogEdgeSimulator:
                            font=('Consolas', 9, 'bold'), fill=color)
             lc.create_text(x + bar_w / 2, ch - 8, text=name,
                            font=('Segoe UI', 9), fill=Colors.TEXT_DIM)
-
-    # ──────────── Distribution Chart ────────────
 
     def _draw_distribution(self):
         dc = self.dist_canvas
@@ -841,8 +746,6 @@ class FogEdgeSimulator:
             dc.create_text(x + bar_w / 2, ch - 8, text=name,
                            font=('Segoe UI', 9), fill=Colors.TEXT_DIM)
 
-    # ──────────── Throughput Graph ────────────
-
     def _draw_throughput(self):
         tc = self.throughput_canvas
         tc.delete('all')
@@ -857,7 +760,6 @@ class FogEdgeSimulator:
         gw = cw - pad_x * 2
         gh = ch - pad_y * 2
 
-        # Grid lines
         for i in range(5):
             y = pad_y + gh * i / 4
             tc.create_line(pad_x, y, cw - pad_x, y, fill='#222', dash=(2, 4))
@@ -865,7 +767,6 @@ class FogEdgeSimulator:
             tc.create_text(pad_x - 4, y, text=f"{val:.0f}", anchor='e',
                            font=('Consolas', 7), fill=Colors.TEXT_DIM)
 
-        # Line
         points = []
         for i, v in enumerate(data):
             x = pad_x + (i / (len(data) - 1)) * gw
@@ -874,12 +775,9 @@ class FogEdgeSimulator:
 
         if len(points) >= 4:
             tc.create_line(*points, fill=Colors.ACCENT, width=2, smooth=True)
-            # Fill area
             fill_pts = [points[0], pad_y + gh] + points + [points[-2], pad_y + gh]
             tc.create_polygon(*fill_pts, fill=Colors.ACCENT, outline='', stipple='gray25')
 
-
-# ──────────── Entry Point ────────────
 
 def main():
     root = tk.Tk()
